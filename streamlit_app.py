@@ -1,61 +1,77 @@
-import altair as alt
-import pandas as pd
-import plotly.express as px
 import streamlit as st
-import streamlit_nies as sn
+import pandas as pd
+import os
 
+# Título de la aplicación
+st.title('🎬 Videos de Partidos de Fútbol')
 
-larga = pd.read_csv("static/larga_player.csv")
-data = pd.read_csv("static/played_minutes.csv")
-# ----------------- game start --------
-radar_player = "J. Musiala"
+# --- Preparación de los datos de ejemplo ---
+# Suponiendo que los videos están en una carpeta llamada 'videos'.
+# La estructura de la carpeta sería:
+#
+# /videos
+#   /match_id_1
+#     video1.mp4
+#     video2.mp4
+#   /match_id_2
+#     video3.mp4
+#
+# Para este ejemplo, simularemos un DataFrame con la información de los partidos.
+# En una aplicación real, este DataFrame se cargaría desde una base de datos o archivo.
 
-fig = sn.make_bar_plot_player(larga, radar_player)
+# Ruta base donde se encuentran los videos
+VIDEO_PATH_BASE = 'static'
 
-league, team, player = st.tabs(["League", "Team", "Player"])
+# Crear una lista de diccionarios para simular una base de datos de partidos
+data = [
+    {'match_id': 'match_id_1', 'equipo_local': 'Real Madrid', 'equipo_visitante': 'Barcelona', 'fecha': '2025-09-15'},
+    {'match_id': 'match_id_2', 'equipo_local': 'Boca Juniors', 'equipo_visitante': 'River Plate', 'fecha': '2025-09-10'},
+    {'match_id': 'match_id_3', 'equipo_local': 'Manchester Utd', 'equipo_visitante': 'Liverpool', 'fecha': '2025-09-05'},
+    # Agrega más partidos aquí si lo deseas
+]
 
-with league:
-    st.subheader("Gráficas de desempeño")
-    """
-    Estas gráficas tienen un conjunto de métricas seleccionadas a partir de técnicas de inteligencia artificial.
-    Cada barra representa la fuerza relativa del jugador en cada una de las métricas.
-    La distancia que existe de la barra al centro indica el percentil comparado con la base de datos completa.
+df = pd.DataFrame(data)
 
-    La descripción completa la encontrarás en la entrada [Gráfica de desempeño de jugadores](https://www.nies.futbol/2023/07/grafica-de-desempeno-de-jugadores.html).
-    """
-    st.plotly_chart(fig)
+# --- Controles para la navegación ---
+# Seleccionar un partido por equipo local y visitante
+st.sidebar.header('🔍 Selecciona un Partido')
+partido_seleccionado = st.sidebar.selectbox(
+    'Elige un partido:',
+    df.apply(lambda row: f"{row['equipo_local']} vs {row['equipo_visitante']} ({row['fecha']})", axis=1)
+)
 
-with team:
-    st.subheader("Gráficas de consistencia")
-    """
-    En la figura de abajo mostramos un mapa de calor.
-    En los renglones podemos ver a los jugadores del equipo (incluyendo a los sustitutos).
-    Las columnas corresponden a los partidos disputados.
-    Así, el color de cada cuadro representa los minutos disputados en un partido por cada jugador.
+# Obtener el match_id del partido seleccionado
+match_id = df.loc[
+    df.apply(lambda row: f"{row['equipo_local']} vs {row['equipo_visitante']} ({row['fecha']})", axis=1) == partido_seleccionado,
+    'match_id'
+].iloc[0]
 
-    La descripción completa la encontrarás en la entrada [Consistencia en las alineaciones](https://www.nies.futbol/2023/08/consistencia-en-las-alineaciones-la.html).
-    """
-    teams = ["Cimarrones", "Cancún", "Mineros de Zacatecas"]
-    colours = {"Cimarrones": "oranges", "Cancún": "blues", "Mineros de Zacatecas": "reds"}
-    team = st.selectbox("Selecciona un equipo:", teams)
-    color = colours[team]
-    played_minutes = data[data.team == team]
+# Título para los videos del partido seleccionado
+st.header(f"Videos de {partido_seleccionado}")
 
-    # Crear el gráfico de Altair
-    hm_consistent = sn.make_heat_map_of_sonsistent(data, team, color)
-    st.altair_chart(hm_consistent)
+# --- Carga y visualización de videos ---
+# En una aplicación real, aquí es donde cargarías los nombres de archivo de video para el match_id seleccionado
+# del sistema de archivos o de una base de datos.
+# Para este ejemplo, simulamos la existencia de los archivos de video.
+try:
+    # Ruta de la carpeta específica del partido
+    partido_path = os.path.join(VIDEO_PATH_BASE, match_id)
+    
+    # Obtener la lista de archivos de video en la carpeta
+    if os.path.exists(partido_path):
+        video_files = [f for f in os.listdir(partido_path) if f.endswith('.mp4')]
+    else:
+        video_files = []
 
-with player:
-    st.subheader("Gráficas de desempeño")
-    """
-    Estas gráficas tienen un conjunto de métricas seleccionadas a partir de técnicas de inteligencia artificial.
-    Cada barra representa la fuerza relativa del jugador en cada una de las métricas.
-    La distancia que existe de la barra al centro indica el percentil comparado con la base de datos completa.
-
-    La descripción completa la encontrarás en la entrada [Gráfica de desempeño de jugadores](https://www.nies.futbol/2023/07/grafica-de-desempeno-de-jugadores.html).
-    """
-    fig = sn.add_nies_logo(fig)
-    st.plotly_chart(fig)
-
-
-st.markdown("Made with 💖 by [nies.futbol](https://nies.futbol)")
+    if not video_files:
+        st.warning('⚠️ No se encontraron videos para este partido.')
+    else:
+        # Iterar sobre la lista de videos y mostrarlos
+        for video_file in video_files:
+            video_path = os.path.join(partido_path, video_file)
+            st.markdown(f"**Video: {video_file}**")
+            st.video(video_path)
+            st.markdown("---") # Separador para cada video
+            
+except Exception as e:
+    st.error(f'❌ Ocurrió un error al cargar los videos: {e}')
